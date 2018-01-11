@@ -33,7 +33,7 @@ static int debug;
 
 static void sigint_handler(int arg)
 {
-	abort_requested = 1; 
+	abort_requested = 1;
 }
 
 static void GPIBCleanup(int Dev, char* ErrorMsg)
@@ -64,7 +64,7 @@ static int query(char *query, char *buf, int maxsize)
 	ibrd (Dev, buf, maxsize);
 	if (ibsta & ERR)
 		return -1;
-	
+
 	buf[ibcntl - 1] = '\0';
 	return ibcntl;
 }
@@ -101,7 +101,7 @@ static int write_memory(uint32_t addr, uint8_t *buf, int len)
 	cmd.len = cpu_to_be32(len);
 
 	memcpy(cmd.buf, buf, len);
-	
+
 	build_csum((struct cmd_hdr *)&cmd);
 	if (debug > 1)
 		hexdump(&cmd, len + 12);
@@ -130,7 +130,7 @@ static int write_memory(uint32_t addr, uint8_t *buf, int len)
 	}
 
 	if (hdr.cmd != '=') {
-		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);		
+		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);
 		return -1;
 	}
 	c = '+';
@@ -198,7 +198,7 @@ static int branch_cmd(uint32_t addr, uint32_t arg0, uint8_t *data, int *datalen)
 		hexdump(buf, be16_to_cpu(hdr.len));
 
 	if (hdr.cmd != 'P') {
-		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);		
+		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);
 		return -1;
 	}
 	c = '+';
@@ -250,7 +250,7 @@ static int read_memory(uint32_t addr, uint8_t *buf, int len)
 	}
 
 	if (hdr.cmd != '=') {
-		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);		
+		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);
 		return -1;
 	}
 
@@ -470,7 +470,14 @@ int main(int argc, char **argv)
 		case 'd':
 			debug++;
 			break;
+		default:
+			usage();
+			goto bad_exit;
 		}
+	}
+	if (optind <= 1) {
+		usage();
+		return 1;
 	}
 
 	if (!read_op && !write_op && !erase_flash_op && !flash_write_op) {
