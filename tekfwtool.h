@@ -3,7 +3,11 @@
 
 #define TARGET_FIRMWARE_BASE 0x05010000
 
-#if BYTE_ORDER == LITTLE_ENDIAN 
+#ifndef BYTE_ORDER
+#error Unknown endianness !
+#endif
+
+#if BYTE_ORDER == LITTLE_ENDIAN
 #define cpu_to_be16(_x) ((((_x) & 0xff) << 8) | (((_x) >> 8) & 0xff))
 #define be16_to_cpu cpu_to_be16
 #define cpu_to_be32(_x) (cpu_to_be16(((_x) >> 16) & 0xffff) | \
