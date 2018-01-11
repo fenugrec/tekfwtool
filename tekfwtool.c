@@ -277,14 +277,14 @@ static struct option long_options[] = {
 static void usage(void)
 {
 	fprintf(stderr, "usage:\n"
-		"--read         -r <filename>  read from memory to file\n"
-		"--write        -w <filename>  read from file to memory\n"
-		"--base         -b <base>      base address for read/write/program\n"
-		"--length       -l <length>    length of data to be read or written\n"
-		"--debug        -d             enable debug logging\n"
-		"--flash-id     -i             print ID of flash chips\n"
-		"--flash-erase  -e             erase flash at base address\n"
-		"--flsh-program -p             program flash at base address\n"		
+		"--read          -r <filename>  read from memory to file\n"
+		"--write         -w <filename>  read from file to memory\n"
+		"--base          -b <base>      base address for read/write/program\n"
+		"--length        -l <length>    length of data to be read or written\n"
+		"--debug         -d             enable debug logging\n"
+		"--flash-id      -i             print ID of flash chips\n"
+		"--flash-erase   -e             erase flash at base address\n"
+		"--flash-program -p             program flash at base address\n"
 		"");
 }
 
