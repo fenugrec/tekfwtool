@@ -176,7 +176,7 @@ static int branch_cmd(uint32_t addr, uint32_t arg0, uint8_t *data, int *datalen)
 		hexdump(&hdr, 4);
 
 	if (hdr.len) {
-		printf("reading %d bytes\n", be16_to_cpu(hdr.len));
+		printf("reading %u bytes\n", be16_to_cpu(hdr.len));
 		ibrd(Dev, buf, be16_to_cpu(hdr.len));
 		if (ibsta & ERR) {
 			fprintf(stderr, "%s: reading of additional data failed\n", __FUNCTION__);
@@ -318,7 +318,7 @@ static int flash_program(uint32_t base, uint8_t *buf, int size)
 static int flash_erase(uint32_t base)
 {
 	int len = 0;
-	printf("Erasing flash @ 0x%08x\n", base);
+	printf("Erasing flash @ 0x%08lx\n", (unsigned long) base);
 	return branch_cmd(TARGET_flash_erase, base, NULL, &len);
 }
 
@@ -489,7 +489,9 @@ int main(int argc, char **argv)
 			}
 			if ((addr % 0x1000) == 0) {
 				time(&now);
-				fprintf(stderr, "READ %08x/%08x, %3d%% %4ds\r", addr - base, length, ((addr - base) * 100) / length, (int)(now - start));
+				fprintf(stderr, "READ %08lx/%08lx, %3u%% %4ds\r",
+							(unsigned long) (addr - base), (unsigned long) length,
+							(unsigned) ((addr - base) * 100 / length), (int)(now - start));
 			}
 
 			addr += len;
@@ -506,7 +508,9 @@ int main(int argc, char **argv)
 				return 1;
 			if ((addr % 0x1000) == 0) {
 				time(&now);
-				fprintf(stderr, "WRITE %08x/%08x, %3d%% %4ds\r", addr - base, length, ((addr - base) * 100) / length, (int)(now - start));
+				fprintf(stderr, "WRITE %08lx/%08lx, %3u%% %4ds\r",
+							(unsigned long) (addr - base), (unsigned long) length,
+							(unsigned) ((addr - base) * 100 / length), (int)(now - start));
 			}
 			addr += readlen;
 		} else if (flash_write_op) {
@@ -527,7 +531,9 @@ int main(int argc, char **argv)
 			addr += readlen;
 			if ((addr % 0x1000) == 0) {
 				time(&now);
-				fprintf(stderr, "FLASH WRITE %08x/%08x, %3d%% %4ds\r", addr - base, length, ((addr - base) * 100) / length, (int)(now - start));
+				fprintf(stderr, "FLASH WRITE %08lx/%08lx, %3u%% %4ds\r",
+							(unsigned long) (addr - base), (unsigned long) length,
+							(unsigned) ((addr - base) * 100 / length), (int)(now - start));
 			}
 		} else {
 			fprintf(stderr, "either read or write required\n");
