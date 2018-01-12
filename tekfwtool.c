@@ -7,10 +7,18 @@
 #include <getopt.h>
 #include <signal.h>
 #include <time.h>
-#include <windows.h>
-#include "tekfwtool.h"
-#include "target-procs.h"
-#include "ni488.h"
+
+#ifdef __MSDOS__
+	#include "dosdefs.h"
+	#include "tfdos.h"	//simply tekfwtool.h renamed to 8.3-safe name
+	#include "tgtdummy.h"
+#else
+	#include "tekfwtool.h"
+	#include "target-procs.h"
+	#include <windows.h>
+	#include "ni488.h"
+#endif
+
 
 #define DEFAULT_GPIBADDR 29
 
