@@ -473,36 +473,40 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (!read_op && !write_op && !erase_flash_op && !flash_write_op) {
+		printf("No operation specified !\n");
+		usage();
+		goto bad_exit;
+	}
+
 	if (!length) {
 		fprintf(stderr, "%s: length required\n", __FUNCTION__);
-		return 1;
+		goto bad_exit;
 	}
 
 	if ((erase_flash_op || flash_write_op) && (TARGET_init == 0)) {
 		printf("Cannot flash: compiled without flash write support.\n");
-		if (file) {
-			fclose(file);
-		}
-		return 1;
+		goto bad_exit;
 	}
+
 	signal(SIGINT, sigint_handler);
 
 	Dev = ibdev(0, devaddr, 0, T100s, 1, 0);
 	if (ibsta & ERR) {
 		printf("Unable to open device\nibsta = 0x%x iberr = %d\n",
 		       ibsta, iberr);
-		return 1;
+		goto bad_exit;
 	}
 
 	ibclr (Dev);
 	if (ibsta & ERR) {
 		GPIBCleanup(Dev, "Unable to clear device");
-		return 1;
+		goto bad_exit;
 	}
 
 	if (erase_flash_op || flash_write_op) {
 		if (download_firmware() == -1)
-			return 1;
+			goto bad_exit;
 	}
 	if (erase_flash_op) {
 		flash_erase(base);
@@ -514,11 +518,11 @@ int main(int argc, char **argv)
 		len = MIN(512, base + length - addr);
 		if (read_op) {
 			if (read_memory(addr, buf, len) == -1)
-				return 1;
+				goto bad_exit;
 
 			if (fwrite(buf, 1, len, file) != len) {
-				fprintf(stderr, "short write\n");
-				return 1;
+				fprintf(stderr, "short fwrite\n");
+				goto bad_exit;
 			}
 			if ((addr % 0x1000) == 0) {
 				time(&now);
@@ -534,11 +538,12 @@ int main(int argc, char **argv)
 				break;
 
 			if (readlen == -1) {
-				fprintf(stderr, "read: %s\n", strerror(errno));
-				return 1;
+				fprintf(stderr, "fread: %s\n", strerror(errno));
+				goto bad_exit;
 			}
-			if (write_memory(addr, buf, readlen) == -1)
-				return 1;
+			if (write_memory(addr, buf, readlen) == -1){
+				goto bad_exit;
+			}
 			if ((addr % 0x1000) == 0) {
 				time(&now);
 				fprintf(stderr, "WRITE %08lx/%08lx, %3u%% %4ds\r",
@@ -553,13 +558,13 @@ int main(int argc, char **argv)
 				break;
 
 			if (readlen == -1) {
-				fprintf(stderr, "read: %s\n", strerror(errno));
-				return 1;
+				fprintf(stderr, "fread: %s\n", strerror(errno));
+				goto bad_exit;
 			}
 
 			if (flash_program(addr, buf, readlen) == -1) {
 				fprintf(stderr, "flash programming failed\n");
-				return 1;
+				goto bad_exit;
 			}
 			addr += readlen;
 			if ((addr % 0x1000) == 0) {
@@ -570,10 +575,17 @@ int main(int argc, char **argv)
 			}
 		} else {
 			fprintf(stderr, "either read or write required\n");
-			return 1;
+			goto bad_exit;
 		}
 	}
 	fclose(file);
 	ibonl(Dev, 0);
 	return 0;
+
+bad_exit:
+	if (file) {
+		fclose(file);
+	}
+	return 1;
+
 }
