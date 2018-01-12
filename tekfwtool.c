@@ -231,8 +231,13 @@ static int read_memory(uint32_t addr, uint8_t *buf, int len)
 		fprintf(stderr, "%s: response reading failed\n", __FUNCTION__);
 		return -1;
 	}
+
+	if (debug > 1) {
+		hexdump(&hdr, sizeof(hdr));
+	}
+
 	if (ibcntl < (signed)sizeof(hdr)) {
-		fprintf(stderr, "%s: short header\n", __FUNCTION__);
+		fprintf(stderr, "%s: short header (ibcntl=%l)\n", __FUNCTION__, ibcntl);
 		return -1;
 	}
 
@@ -244,7 +249,8 @@ static int read_memory(uint32_t addr, uint8_t *buf, int len)
 	responselen = be16_to_cpu(hdr.len);
 
 	if (responselen != len) {
-		fprintf(stderr, "%s: short response\n", __FUNCTION__);
+		fprintf(stderr, "%s: short response (%d < %u)\n",
+				__FUNCTION__, responselen, len);
 		return -1;
 	}
 	ibrd(Dev, buf, responselen);
