@@ -12,6 +12,8 @@
 #include "target-procs.h"
 #include "ni488.h"
 
+#define DEFAULT_GPIBADDR 29
+
 int  Dev;
 const char *ErrorMnemonic[] = {"EDVR", "ECIC", "ENOL", "EADR", "EARG",
 			       "ESAC", "EABO", "ENEB", "EDMA", "",
@@ -262,6 +264,7 @@ static int read_memory(uint32_t addr, uint8_t *buf, int len)
 }
 
 static struct option long_options[] = {
+	{ "addr", required_argument, 0, 'a' },
 	{ "read", required_argument, 0, 'r' },
 	{ "write", required_argument, 0, 'w' },
 	{ "base", required_argument, 0, 'b' },
@@ -281,6 +284,7 @@ static void usage(void)
 		"--write         -w <filename>  read from file to memory\n"
 		"--base          -b <base>      base address for read/write/program\n"
 		"--length        -l <length>    length of data to be read or written\n"
+		"--addr          -a <addr>      device's GPIB address (optional). Default 29\n"
 		"--debug         -d             enable debug logging\n"
 		"--flash-id      -i             print ID of flash chips\n"
 		"--flash-erase   -e             erase flash at base address\n"
@@ -369,6 +373,7 @@ out:
 int main(int argc, char **argv)
 {
 	uint32_t len, addr, base = 0, length = 0;
+	int devaddr = DEFAULT_GPIBADDR;
 	char c;
 	uint8_t buf[1024];
 	int val, optidx;
@@ -377,12 +382,19 @@ int main(int argc, char **argv)
 	int readlen, i;
 	time_t start, now;
 
-	while((c = getopt_long(argc, argv, "r:w:b:l:p:hied",
+	while((c = getopt_long(argc, argv, "a:r:w:b:l:p:hied",
 			       long_options, &optidx)) != -1) {
 		switch(c) {
 		case 'h':
 			usage();
 			return 0;
+		case 'a':
+			devaddr = (int) to_number(optarg);
+			if ((devaddr < 0) || (devaddr > 30)) {
+				printf("invalid GPIB address\n");
+				return 1;
+			}
+			break;
 		case 'l':
 			if (length) {
 				fprintf(stderr, "length given twice");
@@ -452,9 +464,16 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	if ((erase_flash_op || flash_write_op) && (TARGET_init == 0)) {
+		printf("Cannot flash: compiled without flash write support.\n");
+		if (file) {
+			fclose(file);
+		}
+		return 1;
+	}
 	signal(SIGINT, sigint_handler);
 
-	Dev = ibdev(0, 29, 0, T100s, 1, 0);
+	Dev = ibdev(0, devaddr, 0, T100s, 1, 0);
 	if (ibsta & ERR) {
 		printf("Unable to open device\nibsta = 0x%x iberr = %d\n",
 		       ibsta, iberr);
