@@ -585,6 +585,7 @@ int main(int argc, char **argv)
 			goto bad_exit;
 		}
 	}
+	fprintf(stderr, "\n");
 	fclose(file);
 	ibonl(Dev, 0);
 	return 0;
