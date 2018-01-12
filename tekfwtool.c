@@ -447,6 +447,11 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (!length) {
+		fprintf(stderr, "%s: length required\n", __FUNCTION__);
+		return 1;
+	}
+
 	signal(SIGINT, sigint_handler);
 
 	Dev = ibdev(0, 29, 0, T100s, 1, 0);
@@ -469,11 +474,6 @@ int main(int argc, char **argv)
 	if (erase_flash_op) {
 		flash_erase(base);
 		return 0;
-	}
-
-	if (!length) {
-		fprintf(stderr, "%s: length required\n", __FUNCTION__);
-		return 1;
 	}
 
 	time(&start);
