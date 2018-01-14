@@ -7,10 +7,20 @@
 #include <getopt.h>
 #include <signal.h>
 #include <time.h>
-#include <windows.h>
-#include "tekfwtool.h"
-#include "target-procs.h"
-#include "ni488.h"
+
+#ifdef __MSDOS__
+	#include "dosdefs.h"
+	#include "tfdos.h"	//simply tekfwtool.h renamed to 8.3-safe name
+	#include "tgtdummy.h"
+#else
+	#include "tekfwtool.h"
+	#include "target-procs.h"
+	#include <windows.h>
+	#include "ni488.h"
+#endif
+
+
+#define DEFAULT_GPIBADDR 29
 
 int  Dev;
 const char *ErrorMnemonic[] = {"EDVR", "ECIC", "ENOL", "EADR", "EARG",
@@ -23,7 +33,7 @@ static int debug;
 
 static void sigint_handler(int arg)
 {
-	abort_requested = 1; 
+	abort_requested = 1;
 }
 
 static void GPIBCleanup(int Dev, char* ErrorMsg)
@@ -54,7 +64,7 @@ static int query(char *query, char *buf, int maxsize)
 	ibrd (Dev, buf, maxsize);
 	if (ibsta & ERR)
 		return -1;
-	
+
 	buf[ibcntl - 1] = '\0';
 	return ibcntl;
 }
@@ -91,7 +101,7 @@ static int write_memory(uint32_t addr, uint8_t *buf, int len)
 	cmd.len = cpu_to_be32(len);
 
 	memcpy(cmd.buf, buf, len);
-	
+
 	build_csum((struct cmd_hdr *)&cmd);
 	if (debug > 1)
 		hexdump(&cmd, len + 12);
@@ -120,7 +130,7 @@ static int write_memory(uint32_t addr, uint8_t *buf, int len)
 	}
 
 	if (hdr.cmd != '=') {
-		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);		
+		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);
 		return -1;
 	}
 	c = '+';
@@ -176,7 +186,7 @@ static int branch_cmd(uint32_t addr, uint32_t arg0, uint8_t *data, int *datalen)
 		hexdump(&hdr, 4);
 
 	if (hdr.len) {
-		printf("reading %d bytes\n", be16_to_cpu(hdr.len));
+		printf("reading %u bytes\n", be16_to_cpu(hdr.len));
 		ibrd(Dev, buf, be16_to_cpu(hdr.len));
 		if (ibsta & ERR) {
 			fprintf(stderr, "%s: reading of additional data failed\n", __FUNCTION__);
@@ -188,7 +198,7 @@ static int branch_cmd(uint32_t addr, uint32_t arg0, uint8_t *data, int *datalen)
 		hexdump(buf, be16_to_cpu(hdr.len));
 
 	if (hdr.cmd != 'P') {
-		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);		
+		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);
 		return -1;
 	}
 	c = '+';
@@ -229,20 +239,26 @@ static int read_memory(uint32_t addr, uint8_t *buf, int len)
 		fprintf(stderr, "%s: response reading failed\n", __FUNCTION__);
 		return -1;
 	}
+
+	if (debug > 1) {
+		hexdump(&hdr, sizeof(hdr));
+	}
+
 	if (ibcntl < (signed)sizeof(hdr)) {
-		fprintf(stderr, "%s: short header\n", __FUNCTION__);
+		fprintf(stderr, "%s: short header (ibcntl=%l)\n", __FUNCTION__, ibcntl);
 		return -1;
 	}
 
 	if (hdr.cmd != '=') {
-		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);		
+		fprintf(stderr, "%s: invalid response: %c\n", __FUNCTION__, hdr.cmd);
 		return -1;
 	}
 
 	responselen = be16_to_cpu(hdr.len);
 
 	if (responselen != len) {
-		fprintf(stderr, "%s: short response\n", __FUNCTION__);
+		fprintf(stderr, "%s: short response (%d < %u)\n",
+				__FUNCTION__, responselen, len);
 		return -1;
 	}
 	ibrd(Dev, buf, responselen);
@@ -262,6 +278,7 @@ static int read_memory(uint32_t addr, uint8_t *buf, int len)
 }
 
 static struct option long_options[] = {
+	{ "addr", required_argument, 0, 'a' },
 	{ "read", required_argument, 0, 'r' },
 	{ "write", required_argument, 0, 'w' },
 	{ "base", required_argument, 0, 'b' },
@@ -277,14 +294,15 @@ static struct option long_options[] = {
 static void usage(void)
 {
 	fprintf(stderr, "usage:\n"
-		"--read         -r <filename>  read from memory to file\n"
-		"--write        -w <filename>  read from file to memory\n"
-		"--base         -b <base>      base address for read/write/program\n"
-		"--length       -l <length>    length of data to be read or written\n"
-		"--debug        -d             enable debug logging\n"
-		"--flash-id     -i             print ID of flash chips\n"
-		"--flash-erase  -e             erase flash at base address\n"
-		"--flsh-program -p             program flash at base address\n"		
+		"--read          -r <filename>  read from memory to file\n"
+		"--write         -w <filename>  read from file to memory\n"
+		"--base          -b <base>      base address for read/write/program\n"
+		"--length        -l <length>    length of data to be read or written\n"
+		"--addr          -a <addr>      device's GPIB address (optional). Default 29\n"
+		"--debug         -d             enable debug logging\n"
+		"--flash-id      -i             print ID of flash chips\n"
+		"--flash-erase   -e             erase flash at base address\n"
+		"--flash-program -p             program flash at base address\n"
 		"");
 }
 
@@ -318,7 +336,7 @@ static int flash_program(uint32_t base, uint8_t *buf, int size)
 static int flash_erase(uint32_t base)
 {
 	int len = 0;
-	printf("Erasing flash @ 0x%08x\n", base);
+	printf("Erasing flash @ 0x%08lx\n", (unsigned long) base);
 	return branch_cmd(TARGET_flash_erase, base, NULL, &len);
 }
 
@@ -369,6 +387,7 @@ out:
 int main(int argc, char **argv)
 {
 	uint32_t len, addr, base = 0, length = 0;
+	int devaddr = DEFAULT_GPIBADDR;
 	char c;
 	uint8_t buf[1024];
 	int val, optidx;
@@ -377,12 +396,19 @@ int main(int argc, char **argv)
 	int readlen, i;
 	time_t start, now;
 
-	while((c = getopt_long(argc, argv, "r:w:b:l:p:hied",
+	while((c = getopt_long(argc, argv, "a:r:w:b:l:p:hied",
 			       long_options, &optidx)) != -1) {
 		switch(c) {
 		case 'h':
 			usage();
 			return 0;
+		case 'a':
+			devaddr = (int) to_number(optarg);
+			if ((devaddr < 0) || (devaddr > 30)) {
+				printf("invalid GPIB address\n");
+				return 1;
+			}
+			break;
 		case 'l':
 			if (length) {
 				fprintf(stderr, "length given twice");
@@ -444,36 +470,54 @@ int main(int argc, char **argv)
 		case 'd':
 			debug++;
 			break;
+		default:
+			usage();
+			goto bad_exit;
 		}
+	}
+	if (optind <= 1) {
+		usage();
+		return 1;
+	}
+
+	if (!read_op && !write_op && !erase_flash_op && !flash_write_op) {
+		printf("No operation specified !\n");
+		usage();
+		goto bad_exit;
+	}
+
+	if (!length) {
+		fprintf(stderr, "%s: length required\n", __FUNCTION__);
+		goto bad_exit;
+	}
+
+	if ((erase_flash_op || flash_write_op) && (TARGET_init == 0)) {
+		printf("Cannot flash: compiled without flash write support.\n");
+		goto bad_exit;
 	}
 
 	signal(SIGINT, sigint_handler);
 
-	Dev = ibdev(0, 29, 0, T100s, 1, 0);
+	Dev = ibdev(0, devaddr, 0, T100s, 1, 0);
 	if (ibsta & ERR) {
 		printf("Unable to open device\nibsta = 0x%x iberr = %d\n",
 		       ibsta, iberr);
-		return 1;
+		goto bad_exit;
 	}
 
 	ibclr (Dev);
 	if (ibsta & ERR) {
 		GPIBCleanup(Dev, "Unable to clear device");
-		return 1;
+		goto bad_exit;
 	}
 
 	if (erase_flash_op || flash_write_op) {
 		if (download_firmware() == -1)
-			return 1;
+			goto bad_exit;
 	}
 	if (erase_flash_op) {
 		flash_erase(base);
 		return 0;
-	}
-
-	if (!length) {
-		fprintf(stderr, "%s: length required\n", __FUNCTION__);
-		return 1;
 	}
 
 	time(&start);
@@ -481,15 +525,17 @@ int main(int argc, char **argv)
 		len = MIN(512, base + length - addr);
 		if (read_op) {
 			if (read_memory(addr, buf, len) == -1)
-				return 1;
+				goto bad_exit;
 
 			if (fwrite(buf, 1, len, file) != len) {
-				fprintf(stderr, "short write\n");
-				return 1;
+				fprintf(stderr, "short fwrite\n");
+				goto bad_exit;
 			}
 			if ((addr % 0x1000) == 0) {
 				time(&now);
-				fprintf(stderr, "READ %08x/%08x, %3d%% %4ds\r", addr - base, length, ((addr - base) * 100) / length, (int)(now - start));
+				fprintf(stderr, "READ %08lx/%08lx, %3u%% %4ds\r",
+							(unsigned long) (addr - base), (unsigned long) length,
+							(unsigned) ((addr - base) * 100 / length), (int)(now - start));
 			}
 
 			addr += len;
@@ -499,14 +545,17 @@ int main(int argc, char **argv)
 				break;
 
 			if (readlen == -1) {
-				fprintf(stderr, "read: %s\n", strerror(errno));
-				return 1;
+				fprintf(stderr, "fread: %s\n", strerror(errno));
+				goto bad_exit;
 			}
-			if (write_memory(addr, buf, readlen) == -1)
-				return 1;
+			if (write_memory(addr, buf, readlen) == -1){
+				goto bad_exit;
+			}
 			if ((addr % 0x1000) == 0) {
 				time(&now);
-				fprintf(stderr, "WRITE %08x/%08x, %3d%% %4ds\r", addr - base, length, ((addr - base) * 100) / length, (int)(now - start));
+				fprintf(stderr, "WRITE %08lx/%08lx, %3u%% %4ds\r",
+							(unsigned long) (addr - base), (unsigned long) length,
+							(unsigned) ((addr - base) * 100 / length), (int)(now - start));
 			}
 			addr += readlen;
 		} else if (flash_write_op) {
@@ -516,25 +565,35 @@ int main(int argc, char **argv)
 				break;
 
 			if (readlen == -1) {
-				fprintf(stderr, "read: %s\n", strerror(errno));
-				return 1;
+				fprintf(stderr, "fread: %s\n", strerror(errno));
+				goto bad_exit;
 			}
 
 			if (flash_program(addr, buf, readlen) == -1) {
 				fprintf(stderr, "flash programming failed\n");
-				return 1;
+				goto bad_exit;
 			}
 			addr += readlen;
 			if ((addr % 0x1000) == 0) {
 				time(&now);
-				fprintf(stderr, "FLASH WRITE %08x/%08x, %3d%% %4ds\r", addr - base, length, ((addr - base) * 100) / length, (int)(now - start));
+				fprintf(stderr, "FLASH WRITE %08lx/%08lx, %3u%% %4ds\r",
+							(unsigned long) (addr - base), (unsigned long) length,
+							(unsigned) ((addr - base) * 100 / length), (int)(now - start));
 			}
 		} else {
 			fprintf(stderr, "either read or write required\n");
-			return 1;
+			goto bad_exit;
 		}
 	}
+	fprintf(stderr, "\n");
 	fclose(file);
 	ibonl(Dev, 0);
 	return 0;
+
+bad_exit:
+	if (file) {
+		fclose(file);
+	}
+	return 1;
+
 }
