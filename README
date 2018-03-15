@@ -1,0 +1,13 @@
+This requires the NI GPIB driver; this repo includes the 32-bit version.
+To use it, your compiler must be able to generate and link 32-bit code. It may be possible to link against a 64-bit driver if NI provides one (unknown), but is untested so far.
+
+By default, some 68k code must be compiled (required for main ROM erase and reflash) and therefore requires the appropriate compiler.
+
+To build under Linux:
+- edit Makefile, check CC=... line
+- "make"
+
+To build under DOS :
+- refer to "tfdos" file
+- by default *does not* include the ROM reflash kernel
+
