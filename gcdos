@@ -19,7 +19,7 @@ link=link
 cflags=/c /Idoslib /D__MSDOS__ /Fc
 
 
-getcal.exe: getcal.obj getcal
+getcal.exe: getcal.obj
 	$(link) /nod \
 	getcal.obj doslib\MCIB.LIB,\
 	getcal.exe,getcal.map,slibc7;

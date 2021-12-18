@@ -67,7 +67,6 @@ static void print_version(void)
 }
 
 
-int main(void)  {
 /*
  * ========================================================================
  *
@@ -90,13 +89,17 @@ int main(void)  {
 #define EOTMODE               1     // Enable the END message
 #define EOSMODE               0     // Disable the EOS mode
 
-FILE *outfile;
-int f;
+int main(void)  {
+	FILE *outfile;
+	int f;
 #if 0
 unsigned long addr;
+
 // addr = 0x00040000L; /* CAL data base address on TDS5xxB,6xxA,7xxA*/
 addr = 262144; /* CAL data base address on TDS5xxB,6xxA,7xxA*/
 #endif
+	unsigned char calbuf[255];
+	int caldata;
 
     print_version();
 
@@ -171,38 +174,35 @@ addr = 262144; /* CAL data base address on TDS5xxB,6xxA,7xxA*/
        return 1;
     }
 
-	unsigned char calbuf[255];
-	int caldata;
-
-
 	for(f = 0; f < 124; f++)
 	{
-	char cmdbuf[64] = "WORDCONSTANT:ATOFFSET? 262144,";	
-	char cmdnr[16];
-	sprintf(cmdnr,"%d",f);
-	strcat(cmdbuf, cmdnr);
-	
-    if (debug > 1) printf("DSO IDN:  %s\n", cmdbuf);
+		char cmdbuf[64] = "WORDCONSTANT:ATOFFSET? 262144,";
+		char cmdnr[16];
+		unsigned char* abuffer;
+		sprintf(cmdnr,"%d",f);
+		strcat(cmdbuf, cmdnr);
 
-	ibwrt (Dev, cmdbuf, sizeof(cmdbuf));
-     if (ibsta & ERR)
-    	{
-    	   GPIBCleanup(Dev, "Unable to write to device");
-    	   return 1;
-    	}
-	ibrd(Dev, calbuf, 6);
-     if (ibsta & ERR)
-    	{
-    	   GPIBCleanup(Dev, "Unable to write to device");
-    	   return 1;
-    	}
-    	
-     caldata = atoi((char *) calbuf);
-    if (debug > 1) printf("CAL DATA: %X\n", caldata);
-  
-    unsigned char* abuffer  = (unsigned char *)&caldata;
-   	fputc(abuffer[1], outfile);
-   	fputc(abuffer[0], outfile);
+		if (debug > 1) printf("DSO IDN:  %s\n", cmdbuf);
+
+		ibwrt (Dev, cmdbuf, sizeof(cmdbuf));
+		 if (ibsta & ERR)
+			{
+			   GPIBCleanup(Dev, "Unable to write to device");
+			   return 1;
+			}
+		ibrd(Dev, calbuf, 6);
+		 if (ibsta & ERR)
+			{
+			   GPIBCleanup(Dev, "Unable to write to device");
+			   return 1;
+			}
+
+		 caldata = atoi((char *) calbuf);
+		if (debug > 1) printf("CAL DATA: %X\n", caldata);
+
+		abuffer  = (unsigned char *)&caldata;
+		fputc(abuffer[1], outfile);
+		fputc(abuffer[0], outfile);
 	}
 	fclose(outfile);
 	
@@ -212,32 +212,33 @@ addr = 262144; /* CAL data base address on TDS5xxB,6xxA,7xxA*/
 	
 	for(f = 0; f < 128; f++)
 	{
-	char cmdbuf[64] = "WORDCONSTANT:ATOFFSET? 262144,";	
-	char cmdnr[16];
-	sprintf(cmdnr,"%d",f+124);
-	strcat(cmdbuf, cmdnr);
-	
-    if (debug > 1) printf("DSO IDN:  %s\n", cmdbuf);
+		char cmdbuf[64] = "WORDCONSTANT:ATOFFSET? 262144,";
+		char cmdnr[16];
+		unsigned char* abuffer;
+		sprintf(cmdnr,"%d",f+124);
+		strcat(cmdbuf, cmdnr);
 
-	ibwrt (Dev, cmdbuf, sizeof(cmdbuf));
-     if (ibsta & ERR)
-    	{
-    	   GPIBCleanup(Dev, "Unable to write to device");
-    	   return 1;
-    	}
-	ibrd(Dev, calbuf, 6);
-     if (ibsta & ERR)
-    	{
-    	   GPIBCleanup(Dev, "Unable to write to device");
-    	   return 1;
-    	}
-    	
-    caldata = atoi((char *) calbuf);
-    if (debug > 1) printf("CAL DATA: %X\n", caldata);
-  
-    unsigned char* abuffer  = (unsigned char *)&caldata;
-   	fputc(abuffer[1], outfile);
-   	fputc(abuffer[0], outfile);
+		if (debug > 1) printf("DSO IDN:  %s\n", cmdbuf);
+
+		ibwrt (Dev, cmdbuf, sizeof(cmdbuf));
+		 if (ibsta & ERR)
+			{
+			   GPIBCleanup(Dev, "Unable to write to device");
+			   return 1;
+			}
+		ibrd(Dev, calbuf, 6);
+		 if (ibsta & ERR)
+			{
+			   GPIBCleanup(Dev, "Unable to write to device");
+			   return 1;
+			}
+
+		caldata = atoi((char *) calbuf);
+		if (debug > 1) printf("CAL DATA: %X\n", caldata);
+
+		abuffer  = (unsigned char *)&caldata;
+		fputc(abuffer[1], outfile);
+		fputc(abuffer[0], outfile);
 	}
 	fclose(outfile);
     
