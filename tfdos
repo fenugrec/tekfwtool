@@ -18,10 +18,11 @@ cc=cl
 link=link
 cflags=/c /Idoslib /D__MSDOS__ /Fc
 
+all: getcal.exe tfdos.exe
 
-tfdos.exe: tfdos.obj doslib\getopt.obj tfdos
+tfdos.exe: tfdos.obj getopt.obj
 	$(link) /nod \
-	tfdos.obj doslib\getopt.obj doslib\MCIB.LIB,\
+	tfdos.obj getopt.obj doslib\MCIB.LIB,\
 	tfdos.exe,tfdos.map,slibc7;
 
 tfdos.c: tekfwt~1.h tekfwt~2.c
@@ -33,7 +34,27 @@ tfdos.c: tekfwt~1.h tekfwt~2.c
 
 tfdos.obj: tfdos.c
 
-doslib\getopt.obj: doslib\getopt.c
+getopt.obj: doslib\getopt.c
+
+
+#change last line to
+### getcal.exe,getcal.map,slibc7;
+# to produce a mapfile
+
+getcal.exe: getcal.obj
+	$(link) /nod \
+	getcal.obj doslib\MCIB.LIB,\
+	getcal.exe,,slibc7;
+
+getcal.c: getcal~1.c
+	copy getcal~1.c getcal.c
+
+.c.obj:
+	$(cc) $(cdebug) $(cflags) $(cvars) $*.c
+
+getcal.obj: getcal.c
+
+
 
 
 
