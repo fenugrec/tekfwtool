@@ -1,0 +1,6 @@
+*.OBJ
+*.MAP
+*.COD
+
+#don't ignore this one !
+!gpib-32.obj
