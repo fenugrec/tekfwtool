@@ -7,7 +7,6 @@ To build under Linux:
 - edit Makefile, check CC=... line
 - "make"
 
-To build under DOS :
-- refer to "tfdos" file
+To build under DOS (tested dosbox with MS 6.00 compilers)
+- refer to "mkf_dos" file : essentially "nmake /f mkf_dos"
 - by default *does not* include the ROM reflash kernel
-
